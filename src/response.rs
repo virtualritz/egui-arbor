@@ -1,17 +1,18 @@
 //! Response types for the outliner widget.
 //!
-//! This module provides types that represent the result of rendering an outliner widget,
-//! including information about user interactions and state changes.
+//! This module provides types that represent the result of rendering an
+//! outliner widget, including information about user interactions and state
+//! changes.
 
 use crate::traits::DropPosition;
-use std::hash::Hash;
-use std::ops::Deref;
+use std::{hash::Hash, ops::Deref};
 
 /// The response from rendering an outliner widget.
 ///
-/// This type wraps an [`egui::Response`] and provides additional information about
-/// outliner-specific events that occurred during the frame, such as node selection,
-/// double-clicks, context menu requests, renaming, and drag-drop operations.
+/// This type wraps an [`egui::Response`] and provides additional information
+/// about outliner-specific events that occurred during the frame, such as node
+/// selection, double-clicks, context menu requests, renaming, and drag-drop
+/// operations.
 ///
 /// # Generic Parameters
 ///
@@ -42,8 +43,8 @@ where
 {
     /// The underlying egui widget response.
     ///
-    /// This can be accessed directly via [`Deref`] to check standard widget properties
-    /// like hover state, clicks, etc.
+    /// This can be accessed directly via [`Deref`] to check standard widget
+    /// properties like hover state, clicks, etc.
     pub inner: egui::Response,
 
     /// Whether any outliner state changed this frame.
@@ -60,10 +61,12 @@ where
 
     /// ID of the node that was double-clicked this frame, if any.
     ///
-    /// Double-clicking typically triggers an action like opening or editing a node.
+    /// Double-clicking typically triggers an action like opening or editing a
+    /// node.
     pub double_clicked: Option<Id>,
 
-    /// ID of the node for which a context menu was requested this frame, if any.
+    /// ID of the node for which a context menu was requested this frame, if
+    /// any.
     ///
     /// This is typically triggered by right-clicking on a node.
     pub context_menu: Option<Id>,
@@ -78,14 +81,17 @@ where
     /// This indicates the user began dragging a node.
     pub drag_started: Option<Id>,
 
-    /// IDs of all nodes being dragged (includes the primary drag node and any selected nodes).
+    /// IDs of all nodes being dragged (includes the primary drag node and any
+    /// selected nodes).
     ///
-    /// When dragging with multiple selections, this contains all selected node IDs.
+    /// When dragging with multiple selections, this contains all selected node
+    /// IDs.
     pub dragging_nodes: Vec<Id>,
 
     /// Details of a drop event that occurred this frame, if any.
     ///
-    /// This contains information about the source node, target node, and drop position.
+    /// This contains information about the source node, target node, and drop
+    /// position.
     pub drop_event: Option<DropEvent<Id>>,
 }
 
@@ -95,8 +101,9 @@ where
 {
     /// Creates a new outliner response with no events.
     ///
-    /// All event fields are initialized to `None` and `changed` is set to `false`.
-    /// The widget implementation will populate these fields as events occur.
+    /// All event fields are initialized to `None` and `changed` is set to
+    /// `false`. The widget implementation will populate these fields as
+    /// events occur.
     ///
     /// # Arguments
     ///
@@ -165,7 +172,8 @@ where
         self.double_clicked.as_ref()
     }
 
-    /// Returns the ID of the node for which a context menu was requested, if any.
+    /// Returns the ID of the node for which a context menu was requested, if
+    /// any.
     ///
     /// # Examples
     ///
@@ -179,7 +187,8 @@ where
         self.context_menu.as_ref()
     }
 
-    /// Returns the ID and new name of a node that was renamed this frame, if any.
+    /// Returns the ID and new name of a node that was renamed this frame, if
+    /// any.
     ///
     /// # Examples
     ///
@@ -344,11 +353,11 @@ mod tests {
 
     // Since we can't easily construct egui::Response in tests, we'll test
     // the OutlinerResponse fields and methods directly
-    
+
     #[test]
     fn test_drop_event_new() {
         let event = DropEvent::new(10, 20, DropPosition::Before);
-        
+
         assert_eq!(event.source, 10);
         assert_eq!(event.target, 20);
         assert_eq!(event.position, DropPosition::Before);
@@ -359,7 +368,7 @@ mod tests {
         let event_before = DropEvent::new(1, 2, DropPosition::Before);
         let event_after = DropEvent::new(1, 2, DropPosition::After);
         let event_inside = DropEvent::new(1, 2, DropPosition::Inside);
-        
+
         assert_eq!(event_before.position, DropPosition::Before);
         assert_eq!(event_after.position, DropPosition::After);
         assert_eq!(event_inside.position, DropPosition::Inside);
@@ -371,7 +380,7 @@ mod tests {
         let event2 = DropEvent::new(1, 2, DropPosition::Inside);
         let event3 = DropEvent::new(1, 2, DropPosition::Before);
         let event4 = DropEvent::new(2, 3, DropPosition::Inside);
-        
+
         assert_eq!(event1, event2);
         assert_ne!(event1, event3);
         assert_ne!(event1, event4);
@@ -381,7 +390,7 @@ mod tests {
     fn test_drop_event_clone() {
         let event = DropEvent::new(5, 10, DropPosition::After);
         let cloned = event.clone();
-        
+
         assert_eq!(event, cloned);
         assert_eq!(cloned.source, 5);
         assert_eq!(cloned.target, 10);
@@ -392,10 +401,13 @@ mod tests {
     fn test_drop_event_with_different_id_types() {
         let event_u64 = DropEvent::new(1u64, 2u64, DropPosition::Inside);
         assert_eq!(event_u64.source, 1u64);
-        
-        let event_string = DropEvent::new("node1".to_string(), "node2".to_string(), DropPosition::Before);
+
+        let event_string = DropEvent::new(
+            "node1".to_string(),
+            "node2".to_string(),
+            DropPosition::Before,
+        );
         assert_eq!(event_string.source, "node1".to_string());
         assert_eq!(event_string.target, "node2".to_string());
     }
-
 }

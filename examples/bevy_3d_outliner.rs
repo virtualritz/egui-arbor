@@ -15,10 +15,11 @@
 //! - Drag nodes in outliner to reorganize hierarchy
 //! - Click visibility icons in outliner to show/hide objects
 
+use bevy::ecs::message::MessageReader;
 use bevy::prelude::*;
 use egui_arbor::{
-    tree_ops::TreeOperations, ActionIcon, DropPosition, IconType, Outliner, OutlinerActions,
-    OutlinerNode,
+    ActionIcon, DropPosition, IconType, Outliner, OutlinerActions, OutlinerNode,
+    tree_ops::TreeOperations,
 };
 use std::collections::HashSet;
 
@@ -27,18 +28,19 @@ fn main() {
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "Bevy 3D Outliner Example".to_string(),
-                resolution: (1280.0, 720.0).into(),
+                resolution: (1280u32, 720u32).into(),
                 ..default()
             }),
             ..default()
         }))
-        .add_plugins(bevy_egui::EguiPlugin {
-            enable_multipass_for_primary_context: false,
-        })
+        .add_plugins(bevy_egui::EguiPlugin::default())
         .init_resource::<SceneTree>()
         .init_resource::<TreeActions>()
         .add_systems(Startup, setup_scene)
-        .add_systems(Update, (ui_system, orbit_camera_system, sync_visibility_system))
+        .add_systems(
+            Update,
+            (ui_system, orbit_camera_system, sync_visibility_system),
+        )
         .run();
 }
 
@@ -98,13 +100,13 @@ impl TreeNode {
             self.name = new_name;
             return true;
         }
-        
+
         for child in &mut self.children {
             if child.rename_node(id, new_name.clone()) {
                 return true;
             }
         }
-        
+
         false
     }
 }
@@ -199,7 +201,8 @@ struct TreeActions {
 impl Default for TreeActions {
     fn default() -> Self {
         let mut visible = HashSet::new();
-        // All nodes visible by default (collections: 0, 4, 8 and objects: 1-3, 5-7, 9-11)
+        // All nodes visible by default (collections: 0, 4, 8 and objects: 1-3,
+        // 5-7, 9-11)
         visible.insert(0); // Collection Red
         for id in 1..=3 {
             visible.insert(id);
@@ -220,8 +223,9 @@ impl TreeActions {}
 
 impl OutlinerActions<TreeNode> for TreeActions {
     fn on_rename(&mut self, id: &u64, new_name: String) {
-        // Note: The actual renaming happens in the ui_system where we have mutable access to SceneTree
-        // This callback is just for tracking that a rename occurred
+        // Note: The actual renaming happens in the ui_system where we have
+        // mutable access to SceneTree This callback is just for
+        // tracking that a rename occurred
         println!("Rename requested for node {}: {}", id, new_name);
     }
 
@@ -244,9 +248,10 @@ impl OutlinerActions<TreeNode> for TreeActions {
     fn on_visibility_toggle(&mut self, id: &u64) {
         let was_visible = self.visible.contains(id);
         let new_state = !was_visible;
-        
+
         // Toggle the node's visibility state
-        // Note: The library automatically propagates visibility to all descendants
+        // Note: The library automatically propagates visibility to all
+        // descendants
         if new_state {
             self.visible.insert(*id);
         } else {
@@ -402,15 +407,17 @@ fn setup_scene(
 
 /// UI system showing the outliner
 fn ui_system(
-    mut contexts: bevy_egui::EguiContexts,
+    mut contexts: Query<&mut bevy_egui::EguiContext>,
     mut scene_tree: ResMut<SceneTree>,
     mut actions: ResMut<TreeActions>,
 ) {
-    let ctx = contexts.ctx_mut();
+    let Ok(mut ctx) = contexts.single_mut() else {
+        return;
+    };
 
     bevy_egui::egui::SidePanel::left("outliner_panel")
         .default_width(300.0)
-        .show(ctx, |ui| {
+        .show(ctx.get_mut(), |ui| {
             ui.heading("🌳 Scene Outliner");
             ui.separator();
 
@@ -419,7 +426,8 @@ fn ui_system(
             ui.label("Double-click to rename");
             ui.add_space(8.0);
 
-            let response = Outliner::new("scene_outliner").show(ui, &scene_tree.nodes, &mut *actions);
+            let response =
+                Outliner::new("scene_outliner").show(ui, &scene_tree.nodes, &mut *actions);
 
             // Handle rename events
             if let Some((node_id, new_name)) = response.renamed() {
@@ -438,9 +446,10 @@ fn ui_system(
 
                 // Get all nodes being dragged (primary + selected)
                 let dragging_ids = response.dragging_nodes();
-                
+
                 if !dragging_ids.is_empty() {
-                    // Step 1: Remove all dragging nodes from their current locations
+                    // Step 1: Remove all dragging nodes from their current
+                    // locations
                     let mut removed_nodes = Vec::new();
                     for drag_id in dragging_ids {
                         for root in &mut scene_tree.nodes {
@@ -461,7 +470,8 @@ fn ui_system(
                             }
                         }
                         if !inserted {
-                            // If insertion failed, log it (in a real app you might want to restore the node)
+                            // If insertion failed, log it (in a real app you
+                            // might want to restore the node)
                             eprintln!("Failed to insert node {} at target {}", node.id, target_id);
                         }
                     }
@@ -474,8 +484,8 @@ fn ui_system(
 fn orbit_camera_system(
     mut query: Query<(&mut Transform, &mut OrbitCamera), With<Camera3d>>,
     mouse_button_input: Res<ButtonInput<MouseButton>>,
-    mut mouse_motion: EventReader<bevy::input::mouse::MouseMotion>,
-    mut mouse_wheel: EventReader<bevy::input::mouse::MouseWheel>,
+    mut mouse_motion: MessageReader<bevy::input::mouse::MouseMotion>,
+    mut mouse_wheel: MessageReader<bevy::input::mouse::MouseWheel>,
 ) {
     let Ok((mut transform, mut orbit)) = query.single_mut() else {
         return;

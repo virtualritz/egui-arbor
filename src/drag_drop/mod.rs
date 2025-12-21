@@ -19,10 +19,12 @@ where
     /// The ID of the node currently being dragged, if any.
     pub dragging: Option<Id>,
 
-    /// The ID of the node currently being hovered over as a potential drop target.
+    /// The ID of the node currently being hovered over as a potential drop
+    /// target.
     pub hover_target: Option<Id>,
 
-    /// The position where the dragged node would be dropped relative to the hover target.
+    /// The position where the dragged node would be dropped relative to the
+    /// hover target.
     pub drop_position: Option<DropPosition>,
 }
 
@@ -133,16 +135,18 @@ where
 
 /// Validates whether a drop operation is allowed.
 ///
-/// This function checks if dropping `source` onto `target` at the given `position`
-/// would create a valid hierarchy without circular dependencies.
+/// This function checks if dropping `source` onto `target` at the given
+/// `position` would create a valid hierarchy without circular dependencies.
 ///
 /// # Arguments
 ///
 /// * `source_id` - The ID of the node being dragged
 /// * `target_id` - The ID of the potential drop target
 /// * `position` - Where the source would be placed relative to the target
-/// * `target_node` - The target node (used to check if it's a collection for Inside drops)
-/// * `is_descendant` - A function that checks if the first ID is a descendant of the second
+/// * `target_node` - The target node (used to check if it's a collection for
+///   Inside drops)
+/// * `is_descendant` - A function that checks if the first ID is a descendant
+///   of the second
 ///
 /// # Returns
 ///
@@ -176,7 +180,8 @@ where
     true
 }
 
-/// Determines the drop position based on the cursor position within a node's rect.
+/// Determines the drop position based on the cursor position within a node's
+/// rect.
 ///
 /// This function divides the node's vertical space into three zones:
 /// - Top 25%: Before
@@ -295,7 +300,7 @@ impl DragDropVisuals {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::traits::{OutlinerNode, IconType, ActionIcon};
+    use crate::traits::{ActionIcon, IconType, OutlinerNode};
 
     // Mock node for testing
     #[derive(Debug, Clone, PartialEq)]
@@ -351,11 +356,6 @@ mod tests {
                 children: Vec::new(),
             }
         }
-
-        fn with_children(mut self, children: Vec<TestNode>) -> Self {
-            self.children = children;
-            self
-        }
     }
 
     #[test]
@@ -377,7 +377,7 @@ mod tests {
     fn test_start_drag() {
         let mut state = DragDropState::<u64>::new();
         state.start_drag(42);
-        
+
         assert!(state.is_dragging());
         assert_eq!(state.dragging_id(), Some(&42));
         assert!(state.is_dragging_node(&42));
@@ -389,7 +389,7 @@ mod tests {
         let mut state = DragDropState::<u64>::new();
         state.start_drag(1);
         state.update_hover(2, DropPosition::Before);
-        
+
         assert!(state.is_hover_target(&2));
         assert!(!state.is_hover_target(&1));
         assert_eq!(state.current_drop_position(), Some(DropPosition::Before));
@@ -401,7 +401,7 @@ mod tests {
         state.start_drag(1);
         state.update_hover(2, DropPosition::After);
         state.clear_hover();
-        
+
         assert!(!state.is_hover_target(&2));
         assert_eq!(state.current_drop_position(), None);
         assert!(state.is_dragging()); // Drag should still be active
@@ -412,7 +412,7 @@ mod tests {
         let mut state = DragDropState::<u64>::new();
         state.start_drag(1);
         state.update_hover(2, DropPosition::Inside);
-        
+
         let result = state.end_drag();
         assert_eq!(result, Some((1, 2, DropPosition::Inside)));
         assert!(!state.is_dragging());
@@ -422,7 +422,7 @@ mod tests {
     fn test_end_drag_without_hover() {
         let mut state = DragDropState::<u64>::new();
         state.start_drag(1);
-        
+
         let result = state.end_drag();
         assert_eq!(result, None);
         assert!(!state.is_dragging());
@@ -434,7 +434,7 @@ mod tests {
         state.start_drag(1);
         state.update_hover(2, DropPosition::Before);
         state.cancel_drag();
-        
+
         assert!(!state.is_dragging());
         assert_eq!(state.dragging_id(), None);
         assert_eq!(state.current_drop_position(), None);
@@ -444,7 +444,7 @@ mod tests {
     fn test_validate_drop_same_node() {
         let node = TestNode::new(1, "Node1", false);
         let is_descendant = |_: &u64, _: &u64| false;
-        
+
         // Cannot drop a node onto itself
         assert!(!validate_drop::<TestNode, _>(
             &1,
@@ -462,7 +462,7 @@ mod tests {
             // Simulate node 2 being a descendant of node 1
             *target == 2 && *source == 1
         };
-        
+
         // Cannot drop a parent into its own descendant
         assert!(!validate_drop::<TestNode, _>(
             &1,
@@ -477,7 +477,7 @@ mod tests {
     fn test_validate_drop_inside_non_collection() {
         let node = TestNode::new(2, "Node2", false);
         let is_descendant = |_: &u64, _: &u64| false;
-        
+
         // Cannot drop inside a non-collection node
         assert!(!validate_drop::<TestNode, _>(
             &1,
@@ -492,7 +492,7 @@ mod tests {
     fn test_validate_drop_valid_before() {
         let node = TestNode::new(2, "Node2", false);
         let is_descendant = |_: &u64, _: &u64| false;
-        
+
         // Valid drop before a node
         assert!(validate_drop::<TestNode, _>(
             &1,
@@ -507,7 +507,7 @@ mod tests {
     fn test_validate_drop_valid_after() {
         let node = TestNode::new(2, "Node2", true);
         let is_descendant = |_: &u64, _: &u64| false;
-        
+
         // Valid drop after a node
         assert!(validate_drop::<TestNode, _>(
             &1,
@@ -522,7 +522,7 @@ mod tests {
     fn test_validate_drop_valid_inside_collection() {
         let node = TestNode::new(2, "Node2", true);
         let is_descendant = |_: &u64, _: &u64| false;
-        
+
         // Valid drop inside a collection
         assert!(validate_drop::<TestNode, _>(
             &1,
@@ -536,7 +536,7 @@ mod tests {
     #[test]
     fn test_calculate_drop_position_before() {
         let rect = egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(100.0, 40.0));
-        
+
         // Top 25% should be Before
         let position = calculate_drop_position(5.0, rect, true);
         assert_eq!(position, DropPosition::Before);
@@ -545,7 +545,7 @@ mod tests {
     #[test]
     fn test_calculate_drop_position_after() {
         let rect = egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(100.0, 40.0));
-        
+
         // Bottom 25% should be After
         let position = calculate_drop_position(35.0, rect, true);
         assert_eq!(position, DropPosition::After);
@@ -554,7 +554,7 @@ mod tests {
     #[test]
     fn test_calculate_drop_position_inside_collection() {
         let rect = egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(100.0, 40.0));
-        
+
         // Middle 50% should be Inside for collections
         let position = calculate_drop_position(20.0, rect, true);
         assert_eq!(position, DropPosition::Inside);
@@ -563,7 +563,7 @@ mod tests {
     #[test]
     fn test_calculate_drop_position_middle_non_collection() {
         let rect = egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(100.0, 40.0));
-        
+
         // Middle 50% should be After for non-collections
         let position = calculate_drop_position(20.0, rect, false);
         assert_eq!(position, DropPosition::After);
@@ -579,13 +579,13 @@ mod tests {
     #[test]
     fn test_multiple_drag_operations() {
         let mut state = DragDropState::<u64>::new();
-        
+
         // First drag
         state.start_drag(1);
         assert!(state.is_dragging_node(&1));
         state.end_drag();
         assert!(!state.is_dragging());
-        
+
         // Second drag
         state.start_drag(2);
         assert!(state.is_dragging_node(&2));
@@ -598,17 +598,17 @@ mod tests {
     fn test_hover_updates_during_drag() {
         let mut state = DragDropState::<u64>::new();
         state.start_drag(1);
-        
+
         // Update hover multiple times
         state.update_hover(2, DropPosition::Before);
         assert!(state.is_hover_target(&2));
         assert_eq!(state.current_drop_position(), Some(DropPosition::Before));
-        
+
         state.update_hover(3, DropPosition::After);
         assert!(!state.is_hover_target(&2));
         assert!(state.is_hover_target(&3));
         assert_eq!(state.current_drop_position(), Some(DropPosition::After));
-        
+
         state.update_hover(4, DropPosition::Inside);
         assert!(state.is_hover_target(&4));
         assert_eq!(state.current_drop_position(), Some(DropPosition::Inside));

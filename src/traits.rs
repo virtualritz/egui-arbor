@@ -8,18 +8,18 @@ use std::hash::Hash;
 /// Represents a node in the outliner hierarchy.
 ///
 /// Users implement this trait on their own data structures to integrate with
-/// the outliner widget. The trait provides methods for accessing node properties,
-/// hierarchy information, and visual customization.
+/// the outliner widget. The trait provides methods for accessing node
+/// properties, hierarchy information, and visual customization.
 ///
 /// # Type Parameters
 ///
-/// * `Id` - A unique identifier type that must be hashable, comparable, and cloneable.
-///   This is used internally for state management and node tracking.
+/// * `Id` - A unique identifier type that must be hashable, comparable, and
+///   cloneable. This is used internally for state management and node tracking.
 ///
 /// # Example
 ///
 /// ```rust
-/// use egui_arbor::{OutlinerNode, IconType, ActionIcon};
+/// use egui_arbor::{ActionIcon, IconType, OutlinerNode};
 ///
 /// struct SceneNode {
 ///     id: u64,
@@ -54,13 +54,15 @@ use std::hash::Hash;
 pub trait OutlinerNode: Sized {
     /// The type used to uniquely identify nodes.
     ///
-    /// Must implement [`Hash`], [`Eq`], [`Clone`], [`Send`], [`Sync`], and [`std::fmt::Debug`] for use in internal state management.
+    /// Must implement [`Hash`], [`Eq`], [`Clone`], [`Send`], [`Sync`], and
+    /// [`std::fmt::Debug`] for use in internal state management.
     type Id: Hash + Eq + Clone + Send + Sync + std::fmt::Debug;
 
     /// Returns the unique identifier for this node.
     ///
-    /// This ID is used for state tracking, selection management, and drag-drop operations.
-    /// It must be stable across frames and unique within the hierarchy.
+    /// This ID is used for state tracking, selection management, and drag-drop
+    /// operations. It must be stable across frames and unique within the
+    /// hierarchy.
     fn id(&self) -> Self::Id;
 
     /// Returns the display name of the node.
@@ -88,7 +90,8 @@ pub trait OutlinerNode: Sized {
 
     /// Returns the icon to display next to the node name.
     ///
-    /// If `None`, no icon is displayed. The default implementation returns `None`.
+    /// If `None`, no icon is displayed. The default implementation returns
+    /// `None`.
     ///
     /// # Example
     ///
@@ -117,8 +120,8 @@ pub trait OutlinerNode: Sized {
 
     /// Returns the action icons to display on the right side of the node.
     ///
-    /// These icons are right-aligned and provide quick access to common operations
-    /// like visibility toggling, locking, and selection.
+    /// These icons are right-aligned and provide quick access to common
+    /// operations like visibility toggling, locking, and selection.
     ///
     /// The default implementation returns the standard set of action icons:
     /// visibility, lock, and selection.
@@ -133,9 +136,9 @@ pub trait OutlinerNode: Sized {
 
 /// Handles user interactions and state changes for outliner nodes.
 ///
-/// This trait defines callbacks for various outliner operations. Users implement
-/// this trait to respond to user actions like renaming, moving, selecting nodes,
-/// and toggling node states.
+/// This trait defines callbacks for various outliner operations. Users
+/// implement this trait to respond to user actions like renaming, moving,
+/// selecting nodes, and toggling node states.
 ///
 /// # Type Parameters
 ///
@@ -231,8 +234,9 @@ pub trait OutlinerActions<N: OutlinerNode> {
 
     /// Called when a node is moved via drag-and-drop.
     ///
-    /// This is triggered when the user successfully completes a drag-drop operation.
-    /// The implementation should update the hierarchy to reflect the new position.
+    /// This is triggered when the user successfully completes a drag-drop
+    /// operation. The implementation should update the hierarchy to reflect
+    /// the new position.
     ///
     /// # Parameters
     ///
@@ -243,8 +247,8 @@ pub trait OutlinerActions<N: OutlinerNode> {
 
     /// Called when a node's selection state changes.
     ///
-    /// This is triggered when the user clicks on a node or uses keyboard navigation
-    /// to change the selection.
+    /// This is triggered when the user clicks on a node or uses keyboard
+    /// navigation to change the selection.
     ///
     /// # Parameters
     ///
@@ -260,8 +264,8 @@ pub trait OutlinerActions<N: OutlinerNode> {
     /// Returns whether a node is currently visible.
     ///
     /// This affects the state of the visibility action icon. The interpretation
-    /// of "visible" is up to the implementation (e.g., visible in a 3D viewport,
-    /// visible in a list, etc.).
+    /// of "visible" is up to the implementation (e.g., visible in a 3D
+    /// viewport, visible in a list, etc.).
     fn is_visible(&self, id: &N::Id) -> bool;
 
     /// Returns whether a node is currently locked.
@@ -278,7 +282,8 @@ pub trait OutlinerActions<N: OutlinerNode> {
     ///
     /// # Parameters
     ///
-    /// * `id` - The unique identifier of the node whose visibility is being toggled
+    /// * `id` - The unique identifier of the node whose visibility is being
+    ///   toggled
     fn on_visibility_toggle(&mut self, id: &N::Id);
 
     /// Called when the lock action icon is clicked.
@@ -288,7 +293,8 @@ pub trait OutlinerActions<N: OutlinerNode> {
     ///
     /// # Parameters
     ///
-    /// * `id` - The unique identifier of the node whose lock state is being toggled
+    /// * `id` - The unique identifier of the node whose lock state is being
+    ///   toggled
     fn on_lock_toggle(&mut self, id: &N::Id);
 
     /// Called when the selection action icon is clicked.
@@ -298,13 +304,15 @@ pub trait OutlinerActions<N: OutlinerNode> {
     ///
     /// # Parameters
     ///
-    /// * `id` - The unique identifier of the node whose selection is being toggled
+    /// * `id` - The unique identifier of the node whose selection is being
+    ///   toggled
     fn on_selection_toggle(&mut self, id: &N::Id);
 
     /// Called when a custom action icon is clicked.
     ///
     /// This is triggered when the user clicks a custom action icon.
-    /// The implementation should handle the custom action based on the icon identifier.
+    /// The implementation should handle the custom action based on the icon
+    /// identifier.
     ///
     /// # Parameters
     ///
@@ -321,10 +329,10 @@ pub trait OutlinerActions<N: OutlinerNode> {
 pub enum IconType {
     /// Icon for collection nodes (nodes that can contain children)
     Collection,
-    
+
     /// Icon for entity nodes (leaf nodes)
     Entity,
-    
+
     /// Custom icon with a user-defined identifier
     ///
     /// The string can be used to look up custom icon rendering logic
@@ -343,24 +351,25 @@ pub enum ActionIcon {
     /// Typically displayed as an eye icon. The visual state reflects
     /// the result of [`OutlinerActions::is_visible`].
     Visibility,
-    
+
     /// Toggle lock state of the node
     ///
     /// Typically displayed as a lock/unlock icon. The visual state reflects
     /// the result of [`OutlinerActions::is_locked`].
     Lock,
-    
+
     /// Toggle selection state of the node
     ///
     /// Typically displayed as a checkbox or selection indicator. The visual
     /// state reflects the result of [`OutlinerActions::is_selected`].
     Selection,
-    
+
     /// Custom action icon with user-defined behavior
     ///
     /// # Fields
     ///
-    /// * `icon` - Identifier for the icon (e.g., emoji, icon name, or custom identifier)
+    /// * `icon` - Identifier for the icon (e.g., emoji, icon name, or custom
+    ///   identifier)
     /// * `tooltip` - Optional tooltip text to display on hover
     Custom {
         /// The icon identifier or character to display
@@ -370,7 +379,8 @@ pub enum ActionIcon {
     },
 }
 
-/// Specifies where a node should be placed relative to a target during drag-drop.
+/// Specifies where a node should be placed relative to a target during
+/// drag-drop.
 ///
 /// This enum is used in [`OutlinerActions::on_move`] to indicate the desired
 /// position of the dragged node relative to the drop target.
@@ -378,10 +388,10 @@ pub enum ActionIcon {
 pub enum DropPosition {
     /// Place the node before the target (as a sibling)
     Before,
-    
+
     /// Place the node after the target (as a sibling)
     After,
-    
+
     /// Place the node inside the target (as a child)
     ///
     /// This is only valid if the target is a collection node.

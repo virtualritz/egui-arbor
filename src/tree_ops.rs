@@ -1,13 +1,14 @@
 //! Tree manipulation operations for outliner nodes.
 //!
-//! This module provides the [`TreeOperations`] trait which offers default implementations
-//! for common tree manipulation operations like renaming, removing, and inserting nodes.
-//! These operations are essential for implementing drag-drop and editing functionality.
+//! This module provides the [`TreeOperations`] trait which offers default
+//! implementations for common tree manipulation operations like renaming,
+//! removing, and inserting nodes. These operations are essential for
+//! implementing drag-drop and editing functionality.
 //!
 //! # Examples
 //!
 //! ```
-//! use egui_arbor::{OutlinerNode, tree_ops::TreeOperations, DropPosition};
+//! use egui_arbor::{DropPosition, OutlinerNode, tree_ops::TreeOperations};
 //!
 //! #[derive(Clone)]
 //! struct MyNode {
@@ -18,17 +19,36 @@
 //!
 //! impl OutlinerNode for MyNode {
 //!     type Id = u64;
-//!     fn id(&self) -> Self::Id { self.id }
-//!     fn name(&self) -> &str { &self.name }
-//!     fn is_collection(&self) -> bool { !self.children.is_empty() }
-//!     fn children(&self) -> &[Self] { &self.children }
-//!     fn children_mut(&mut self) -> &mut Vec<Self> { &mut self.children }
+//!
+//!     fn id(&self) -> Self::Id {
+//!         self.id
+//!     }
+//!
+//!     fn name(&self) -> &str {
+//!         &self.name
+//!     }
+//!
+//!     fn is_collection(&self) -> bool {
+//!         !self.children.is_empty()
+//!     }
+//!
+//!     fn children(&self) -> &[Self] {
+//!         &self.children
+//!     }
+//!
+//!     fn children_mut(&mut self) -> &mut Vec<Self> {
+//!         &mut self.children
+//!     }
 //! }
 //!
 //! // Automatically get tree operations!
 //! impl TreeOperations for MyNode {}
 //!
-//! let mut node = MyNode { id: 1, name: "root".into(), children: vec![] };
+//! let mut node = MyNode {
+//!     id: 1,
+//!     name: "root".into(),
+//!     children: vec![],
+//! };
 //! node.rename_node(&1, "new_name".into());
 //! ```
 
@@ -41,7 +61,8 @@ use crate::traits::{DropPosition, OutlinerNode};
 /// - **Removing**: Extract a node from the tree by ID
 /// - **Inserting**: Place a node at a specific position relative to a target
 ///
-/// All methods use recursive traversal to locate nodes within the tree hierarchy.
+/// All methods use recursive traversal to locate nodes within the tree
+/// hierarchy.
 ///
 /// # Default Implementations
 ///
@@ -108,9 +129,9 @@ pub trait TreeOperations: OutlinerNode + Sized + Clone {
 
     /// Removes a node from the tree by ID and returns it.
     ///
-    /// This method recursively searches the tree starting from this node's children,
-    /// looking for a node with the specified ID. When found, it removes the node
-    /// from its parent's children list and returns it.
+    /// This method recursively searches the tree starting from this node's
+    /// children, looking for a node with the specified ID. When found, it
+    /// removes the node from its parent's children list and returns it.
     ///
     /// # Arguments
     ///
@@ -129,7 +150,7 @@ pub trait TreeOperations: OutlinerNode + Sized + Clone {
     /// ```
     fn remove_node(&mut self, id: &Self::Id) -> Option<Self> {
         let children = self.children_mut();
-        
+
         // Check direct children first
         for i in 0..children.len() {
             if children[i].id() == *id {
@@ -149,11 +170,12 @@ pub trait TreeOperations: OutlinerNode + Sized + Clone {
 
     /// Inserts a node at a specific position relative to a target node.
     ///
-    /// This method recursively searches for the target node and inserts the new node
-    /// according to the specified position:
+    /// This method recursively searches for the target node and inserts the new
+    /// node according to the specified position:
     /// - **Before**: Insert before the target node (as a sibling)
     /// - **After**: Insert after the target node (as a sibling)
-    /// - **Inside**: Insert as a child of the target node (only for collections)
+    /// - **Inside**: Insert as a child of the target node (only for
+    ///   collections)
     ///
     /// # Arguments
     ///
@@ -184,7 +206,8 @@ pub trait TreeOperations: OutlinerNode + Sized + Clone {
                     }
                 }
                 _ => {
-                    // Can't insert before/after at root level without parent context
+                    // Can't insert before/after at root level without parent
+                    // context
                     return false;
                 }
             }
@@ -212,7 +235,7 @@ pub trait TreeOperations: OutlinerNode + Sized + Clone {
                 }
                 return false;
             }
-            
+
             // Recursively search in this child
             if children[i].insert_node(target_id, node.clone(), position) {
                 return true;
@@ -224,7 +247,8 @@ pub trait TreeOperations: OutlinerNode + Sized + Clone {
 
     /// Finds a node by ID in the tree.
     ///
-    /// This is a helper method that recursively searches for a node with the given ID.
+    /// This is a helper method that recursively searches for a node with the
+    /// given ID.
     ///
     /// # Arguments
     ///
@@ -249,8 +273,8 @@ pub trait TreeOperations: OutlinerNode + Sized + Clone {
 
     /// Finds a node by ID in the tree (mutable version).
     ///
-    /// This is a helper method that recursively searches for a node with the given ID
-    /// and returns a mutable reference.
+    /// This is a helper method that recursively searches for a node with the
+    /// given ID and returns a mutable reference.
     ///
     /// # Arguments
     ///
@@ -358,9 +382,11 @@ mod tests {
     #[test]
     fn test_remove_node_nested() {
         let mut root = TestNode::new(1, "root", true).with_children(vec![
-            TestNode::new(2, "child1", true).with_children(vec![
-                TestNode::new(3, "grandchild", false),
-            ]),
+            TestNode::new(2, "child1", true).with_children(vec![TestNode::new(
+                3,
+                "grandchild",
+                false,
+            )]),
         ]);
 
         let removed = root.remove_node(&3);
@@ -371,9 +397,8 @@ mod tests {
 
     #[test]
     fn test_remove_node_not_found() {
-        let mut root = TestNode::new(1, "root", true).with_children(vec![
-            TestNode::new(2, "child1", false),
-        ]);
+        let mut root =
+            TestNode::new(1, "root", true).with_children(vec![TestNode::new(2, "child1", false)]);
 
         let removed = root.remove_node(&999);
         assert!(removed.is_none());
@@ -399,7 +424,7 @@ mod tests {
 
         let new_node = TestNode::new(4, "new", false);
         let result = root.insert_node(&3, new_node, DropPosition::Before);
-        
+
         assert!(result);
         assert_eq!(root.children.len(), 3);
         assert_eq!(root.children[1].id, 4);
@@ -415,7 +440,7 @@ mod tests {
 
         let new_node = TestNode::new(4, "new", false);
         let result = root.insert_node(&2, new_node, DropPosition::After);
-        
+
         assert!(result);
         assert_eq!(root.children.len(), 3);
         assert_eq!(root.children[0].id, 2);
@@ -424,13 +449,12 @@ mod tests {
 
     #[test]
     fn test_insert_node_inside_non_collection() {
-        let mut root = TestNode::new(1, "root", true).with_children(vec![
-            TestNode::new(2, "child1", false),
-        ]);
+        let mut root =
+            TestNode::new(1, "root", true).with_children(vec![TestNode::new(2, "child1", false)]);
 
         let new_node = TestNode::new(3, "new", false);
         let result = root.insert_node(&2, new_node, DropPosition::Inside);
-        
+
         assert!(!result);
         assert_eq!(root.children.len(), 1);
     }
@@ -438,9 +462,11 @@ mod tests {
     #[test]
     fn test_find_node() {
         let root = TestNode::new(1, "root", true).with_children(vec![
-            TestNode::new(2, "child1", true).with_children(vec![
-                TestNode::new(3, "grandchild", false),
-            ]),
+            TestNode::new(2, "child1", true).with_children(vec![TestNode::new(
+                3,
+                "grandchild",
+                false,
+            )]),
         ]);
 
         let found = root.find_node(&3);
@@ -453,13 +479,12 @@ mod tests {
 
     #[test]
     fn test_find_node_mut() {
-        let mut root = TestNode::new(1, "root", true).with_children(vec![
-            TestNode::new(2, "child1", false),
-        ]);
+        let mut root =
+            TestNode::new(1, "root", true).with_children(vec![TestNode::new(2, "child1", false)]);
 
         let found = root.find_node_mut(&2);
         assert!(found.is_some());
-        
+
         if let Some(node) = found {
             node.name = "modified".to_string();
         }

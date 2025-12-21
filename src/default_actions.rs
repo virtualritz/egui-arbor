@@ -1,8 +1,8 @@
 //! Default implementation of the OutlinerActions trait.
 //!
-//! This module provides [`DefaultActions`], a ready-to-use implementation of the
-//! [`OutlinerActions`] trait that handles common outliner state management including
-//! selection, visibility, lock states, and optional event logging.
+//! This module provides [`DefaultActions`], a ready-to-use implementation of
+//! the [`OutlinerActions`] trait that handles common outliner state management
+//! including selection, visibility, lock states, and optional event logging.
 //!
 //! # Examples
 //!
@@ -20,10 +20,11 @@
 //! assert_eq!(actions.visible_count(), 0);
 //! ```
 
-use crate::event_log::{EventLog, EventType};
-use crate::traits::{DropPosition, OutlinerActions, OutlinerNode};
-use std::collections::HashSet;
-use std::hash::Hash;
+use crate::{
+    event_log::{EventLog, EventType},
+    traits::{DropPosition, OutlinerActions, OutlinerNode},
+};
+use std::{collections::HashSet, hash::Hash};
 
 /// Default implementation of outliner actions with state tracking.
 ///
@@ -36,15 +37,15 @@ use std::hash::Hash;
 ///
 /// # Type Parameters
 ///
-/// * `Id` - The type used to identify nodes. Must implement `Hash`, `Eq`, and `Clone`.
+/// * `Id` - The type used to identify nodes. Must implement `Hash`, `Eq`, and
+///   `Clone`.
 ///
 /// # Examples
 ///
 /// ## Basic Usage
 ///
 /// ```
-/// use egui_arbor::default_actions::DefaultActions;
-/// use egui_arbor::OutlinerActions;
+/// use egui_arbor::{default_actions::DefaultActions, OutlinerActions};
 ///
 /// # struct TestNode { children: Vec<TestNode> }
 /// # impl egui_arbor::OutlinerNode for TestNode {
@@ -88,8 +89,7 @@ use std::hash::Hash;
 /// ## Pre-populate State
 ///
 /// ```
-/// use egui_arbor::default_actions::DefaultActions;
-/// use egui_arbor::OutlinerActions;
+/// use egui_arbor::{default_actions::DefaultActions, OutlinerActions};
 /// use std::collections::HashSet;
 ///
 /// # struct TestNode { children: Vec<TestNode> }
@@ -116,13 +116,13 @@ where
 {
     /// Set of selected node IDs.
     selected: HashSet<Id>,
-    
+
     /// Set of visible node IDs.
     visible: HashSet<Id>,
-    
+
     /// Set of locked node IDs.
     locked: HashSet<Id>,
-    
+
     /// Optional event log for tracking interactions.
     event_log: Option<EventLog<Id>>,
 }
@@ -211,8 +211,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// use egui_arbor::default_actions::DefaultActions;
-    /// use egui_arbor::OutlinerActions;
+    /// use egui_arbor::{default_actions::DefaultActions, OutlinerActions};
     ///
     /// # struct TestNode { children: Vec<TestNode> }
     /// # impl egui_arbor::OutlinerNode for TestNode {
@@ -237,8 +236,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// use egui_arbor::default_actions::DefaultActions;
-    /// use egui_arbor::OutlinerActions;
+    /// use egui_arbor::{default_actions::DefaultActions, OutlinerActions};
     ///
     /// # struct TestNode { children: Vec<TestNode> }
     /// # impl egui_arbor::OutlinerNode for TestNode {
@@ -262,8 +260,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// use egui_arbor::default_actions::DefaultActions;
-    /// use egui_arbor::OutlinerActions;
+    /// use egui_arbor::{default_actions::DefaultActions, OutlinerActions};
     ///
     /// # struct TestNode { children: Vec<TestNode> }
     /// # impl egui_arbor::OutlinerNode for TestNode {
@@ -287,8 +284,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// use egui_arbor::default_actions::DefaultActions;
-    /// use egui_arbor::OutlinerActions;
+    /// use egui_arbor::{default_actions::DefaultActions, OutlinerActions};
     ///
     /// # struct TestNode { children: Vec<TestNode> }
     /// # impl egui_arbor::OutlinerNode for TestNode {
@@ -329,8 +325,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// use egui_arbor::default_actions::DefaultActions;
-    /// use egui_arbor::OutlinerActions;
+    /// use egui_arbor::{default_actions::DefaultActions, OutlinerActions};
     /// use std::collections::HashSet;
     ///
     /// # struct TestNode { children: Vec<TestNode> }
@@ -357,8 +352,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// use egui_arbor::default_actions::DefaultActions;
-    /// use egui_arbor::OutlinerActions;
+    /// use egui_arbor::{default_actions::DefaultActions, OutlinerActions};
     ///
     /// # struct TestNode { children: Vec<TestNode> }
     /// # impl egui_arbor::OutlinerNode for TestNode {
@@ -566,7 +560,7 @@ mod tests {
         let mut actions = DefaultActions::<u64>::new();
 
         assert!(!OutlinerActions::<TestNode>::is_selected(&actions, &1));
-        
+
         OutlinerActions::<TestNode>::on_select(&mut actions, &1, true);
         assert!(OutlinerActions::<TestNode>::is_selected(&actions, &1));
         assert_eq!(actions.selected_count(), 1);
@@ -584,7 +578,7 @@ mod tests {
         let mut actions = DefaultActions::<u64>::new();
 
         assert!(!OutlinerActions::<TestNode>::is_visible(&actions, &1));
-        
+
         OutlinerActions::<TestNode>::on_visibility_toggle(&mut actions, &1);
         assert!(OutlinerActions::<TestNode>::is_visible(&actions, &1));
         assert_eq!(actions.visible_count(), 1);
@@ -599,7 +593,7 @@ mod tests {
         let mut actions = DefaultActions::<u64>::new();
 
         assert!(!OutlinerActions::<TestNode>::is_locked(&actions, &1));
-        
+
         OutlinerActions::<TestNode>::on_lock_toggle(&mut actions, &1);
         assert!(OutlinerActions::<TestNode>::is_locked(&actions, &1));
         assert_eq!(actions.locked_count(), 1);

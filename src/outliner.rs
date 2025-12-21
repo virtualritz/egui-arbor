@@ -5,10 +5,10 @@
 //! custom actions.
 
 use crate::{
-    drag_drop::{calculate_drop_position, validate_drop, DragDropVisuals},
+    drag_drop::{DragDropVisuals, calculate_drop_position, validate_drop},
     response::{DropEvent, OutlinerResponse},
     state::OutlinerState,
-    style::Style,
+    style::{Style, TreeLineStyle},
     traits::{ActionIcon, DropPosition, OutlinerActions, OutlinerNode},
 };
 
@@ -36,7 +36,7 @@ use crate::{
 pub struct Outliner {
     /// Unique identifier for this outliner instance.
     id: egui::Id,
-    
+
     /// Visual styling configuration.
     style: Style,
 
@@ -49,8 +49,8 @@ impl Outliner {
     ///
     /// # Arguments
     ///
-    /// * `id` - A unique identifier for this outliner instance. This is used for
-    ///   state persistence across frames.
+    /// * `id` - A unique identifier for this outliner instance. This is used
+    ///   for state persistence across frames.
     ///
     /// # Examples
     ///
@@ -95,7 +95,7 @@ impl Outliner {
     /// # Examples
     ///
     /// ```
-    /// use egui_arbor::{Outliner, DragDropVisuals};
+    /// use egui_arbor::{DragDropVisuals, Outliner};
     ///
     /// let outliner = Outliner::new("my_outliner")
     ///     .with_drag_drop_visuals(DragDropVisuals::default());
@@ -107,8 +107,8 @@ impl Outliner {
 
     /// Renders the outliner widget and returns the response.
     ///
-    /// This is the main entry point for using the outliner. It renders all nodes
-    /// in the hierarchy and handles user interactions.
+    /// This is the main entry point for using the outliner. It renders all
+    /// nodes in the hierarchy and handles user interactions.
     ///
     /// # Type Parameters
     ///
@@ -123,8 +123,8 @@ impl Outliner {
     ///
     /// # Returns
     ///
-    /// An [`OutlinerResponse`] containing information about events that occurred
-    /// during rendering.
+    /// An [`OutlinerResponse`] containing information about events that
+    /// occurred during rendering.
     ///
     /// # Examples
     ///
@@ -161,30 +161,50 @@ impl Outliner {
                 let mut node_rects: Vec<(N::Id, egui::Rect)> = Vec::new();
 
                 // Collect all currently selected nodes for potential multi-drag
-                let selected_nodes: Vec<N::Id> = visible_nodes.iter()
+                let selected_nodes: Vec<N::Id> = visible_nodes
+                    .iter()
                     .filter(|id| actions.is_selected(id))
                     .cloned()
                     .collect();
 
                 // Create the outliner response wrapper
-                let mut outliner_response = OutlinerResponse::new(
-                    ui.allocate_response(egui::vec2(ui.available_width(), 0.0), egui::Sense::hover())
-                );
+                let mut outliner_response = OutlinerResponse::new(ui.allocate_response(
+                    egui::vec2(ui.available_width(), 0.0),
+                    egui::Sense::hover(),
+                ));
 
                 // Render all root nodes
-                for node in nodes {
-                    self.render_node(ui, node, 0, nodes, &mut state, actions, &mut outliner_response, &visible_nodes, &mut node_rects, &selected_nodes);
+                let num_roots = nodes.len();
+                for (idx, node) in nodes.iter().enumerate() {
+                    let is_last = idx == num_roots - 1;
+                    self.render_node(
+                        ui,
+                        node,
+                        0,
+                        nodes,
+                        &mut state,
+                        actions,
+                        &mut outliner_response,
+                        &visible_nodes,
+                        &mut node_rects,
+                        &selected_nodes,
+                        &[], // No continuation lines for root level
+                        is_last,
+                    );
                 }
 
                 // Handle box selection in the background
                 let available_rect = ui.available_rect_before_wrap();
                 let bg_response = ui.allocate_rect(available_rect, egui::Sense::click_and_drag());
 
-                // Check if we're starting a box selection (clicking in empty space)
+                // Check if we're starting a box selection (clicking in empty
+                // space)
                 if bg_response.drag_started()
-                    && let Some(start_pos) = ui.ctx().pointer_interact_pos() {
+                    && let Some(start_pos) = ui.ctx().pointer_interact_pos()
+                {
                     // Only start box selection if not clicking on any node
-                    let clicking_on_node = node_rects.iter().any(|(_, rect)| rect.contains(start_pos));
+                    let clicking_on_node =
+                        node_rects.iter().any(|(_, rect)| rect.contains(start_pos));
                     if !clicking_on_node {
                         state.start_box_selection(start_pos);
                     }
@@ -192,7 +212,8 @@ impl Outliner {
 
                 // Draw and update box selection
                 if let Some(box_sel) = state.box_selection()
-                    && let Some(current_pos) = ui.ctx().pointer_interact_pos() {
+                    && let Some(current_pos) = ui.ctx().pointer_interact_pos()
+                {
                     // Draw selection box
                     let min_x = box_sel.start_pos.x.min(current_pos.x);
                     let max_x = box_sel.start_pos.x.max(current_pos.x);
@@ -218,8 +239,9 @@ impl Outliner {
 
                     // Update selection based on box
                     if bg_response.dragged() {
-                        let ctrl_or_cmd_pressed = ui.input(|i| i.modifiers.command || i.modifiers.ctrl);
-                        
+                        let ctrl_or_cmd_pressed =
+                            ui.input(|i| i.modifiers.command || i.modifiers.ctrl);
+
                         // If not holding ctrl/cmd, deselect all first
                         if !ctrl_or_cmd_pressed {
                             for id in &visible_nodes {
@@ -273,6 +295,7 @@ impl Outliner {
     /// Renders a single node and its children recursively.
     ///
     /// This method handles the complete rendering of a node including:
+    /// - Tree lines (if enabled)
     /// - Indentation based on depth
     /// - Expand/collapse arrow (for collections)
     /// - Node icon (if provided)
@@ -292,6 +315,8 @@ impl Outliner {
         visible_nodes: &[N::Id],
         node_rects: &mut Vec<(N::Id, egui::Rect)>,
         selected_nodes: &[N::Id],
+        continuation_lines: &[bool],
+        is_last_child: bool,
     ) where
         N: OutlinerNode,
         A: OutlinerActions<N>,
@@ -311,10 +336,74 @@ impl Outliner {
         let row_output = ui.horizontal(|ui| {
             // Calculate space needed for action icons upfront
             let num_action_icons = node.action_icons().len();
-            let icons_width = num_action_icons as f32 * (self.style.action_icon_size + self.style.icon_spacing);
-            
-            // Add indentation
-            ui.add_space(depth as f32 * self.style.indent);
+            let icons_width =
+                num_action_icons as f32 * (self.style.action_icon_size + self.style.icon_spacing);
+
+            // Draw tree lines and add indentation
+            if let Some(ref tree_line_style) = self.style.tree_lines {
+                let line_color = self
+                    .style
+                    .tree_line_color
+                    .unwrap_or_else(|| ui.visuals().text_color().gamma_multiply(0.3));
+                let row_height = self.style.row_height;
+                let indent = self.style.indent;
+
+                // Get the starting position for drawing
+                let start_pos = ui.cursor().min;
+
+                // Draw continuation lines for each ancestor level
+                for (level, &has_more_siblings) in continuation_lines.iter().enumerate() {
+                    if has_more_siblings {
+                        let x = start_pos.x + (level as f32 + 0.5) * indent;
+                        let top = start_pos.y;
+                        let bottom = start_pos.y + row_height;
+                        self.draw_tree_line(
+                            ui.painter(),
+                            egui::pos2(x, top),
+                            egui::pos2(x, bottom),
+                            tree_line_style,
+                            line_color,
+                        );
+                    }
+                }
+
+                // Draw the connector for this node (if not root level)
+                if depth > 0 {
+                    let x = start_pos.x + (depth as f32 - 0.5) * indent;
+                    let y_center = start_pos.y + row_height / 2.0;
+                    let top = start_pos.y;
+
+                    // Vertical part of the connector
+                    let vertical_bottom = if is_last_child {
+                        y_center
+                    } else {
+                        start_pos.y + row_height
+                    };
+                    self.draw_tree_line(
+                        ui.painter(),
+                        egui::pos2(x, top),
+                        egui::pos2(x, vertical_bottom),
+                        tree_line_style,
+                        line_color,
+                    );
+
+                    // Horizontal part of the connector
+                    let h_end_x = start_pos.x + depth as f32 * indent;
+                    self.draw_tree_line(
+                        ui.painter(),
+                        egui::pos2(x, y_center),
+                        egui::pos2(h_end_x, y_center),
+                        tree_line_style,
+                        line_color,
+                    );
+                }
+
+                // Add space for indentation
+                ui.add_space(depth as f32 * indent);
+            } else {
+                // No tree lines, just add indentation
+                ui.add_space(depth as f32 * self.style.indent);
+            }
 
             // Render expand/collapse arrow for collections
             if is_collection {
@@ -365,7 +454,7 @@ impl Outliner {
                             } else {
                                 (end_idx, start_idx)
                             };
-                            
+
                             // Select all nodes in range
                             for id in &visible_nodes[min_idx..=max_idx] {
                                 actions.on_select(id, true);
@@ -373,7 +462,8 @@ impl Outliner {
                         }
                         response.changed = true;
                     } else if ctrl_or_cmd_pressed {
-                        // Ctrl/Cmd-click: toggle selection without clearing others
+                        // Ctrl/Cmd-click: toggle selection without clearing
+                        // others
                         let new_selection = !is_selected;
                         actions.on_select(&node_id, new_selection);
                         if new_selection {
@@ -382,8 +472,8 @@ impl Outliner {
                         response.selected = Some(node_id.clone());
                         response.changed = true;
                     } else {
-                        // Normal click: clear other selections and select this one
-                        // First, deselect all nodes
+                        // Normal click: clear other selections and select this
+                        // one First, deselect all nodes
                         for id in visible_nodes {
                             if actions.is_selected(id) {
                                 actions.on_select(id, false);
@@ -408,8 +498,10 @@ impl Outliner {
                 }
             }
 
-            // Render action icons (right-aligned)
+            // Render action icons (right-aligned, with scrollbar margin)
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                // Add space for scrollbar
+                ui.add_space(self.style.scrollbar_margin);
                 self.render_action_icons(ui, node, actions);
             });
 
@@ -432,7 +524,7 @@ impl Outliner {
             if drag_response.drag_started() {
                 state.drag_drop_mut().start_drag(node_id.clone());
                 response.drag_started = Some(node_id.clone());
-                
+
                 // Collect all selected nodes for multi-drag
                 // If the dragged node is selected, include all selected nodes
                 // Otherwise, just drag this single node
@@ -441,7 +533,7 @@ impl Outliner {
                 } else {
                     vec![node_id.clone()]
                 };
-                
+
                 state.set_dragging_nodes(dragging_nodes.clone());
                 response.dragging_nodes = dragging_nodes;
                 response.changed = true;
@@ -451,25 +543,21 @@ impl Outliner {
             if state.drag_drop().is_dragging() && !is_dragging {
                 // Check if cursor is hovering over this row
                 if let Some(cursor_pos) = ui.ctx().pointer_hover_pos()
-                    && row_rect.contains(cursor_pos) {
-                    let position = calculate_drop_position(
-                        cursor_pos.y,
-                        row_rect,
-                        is_collection,
-                    );
+                    && row_rect.contains(cursor_pos)
+                {
+                    let position = calculate_drop_position(cursor_pos.y, row_rect, is_collection);
 
                     // Validate the drop
                     if let Some(source_id) = state.drag_drop().dragging_id() {
-                        let is_valid = validate_drop(
-                            source_id,
-                            &node_id,
-                            position,
-                            node,
-                            |target, source| Self::is_descendant_of_impl(all_nodes, target, source),
-                        );
+                        let is_valid =
+                            validate_drop(source_id, &node_id, position, node, |target, source| {
+                                Self::is_descendant_of_impl(all_nodes, target, source)
+                            });
 
                         if is_valid {
-                            state.drag_drop_mut().update_hover(node_id.clone(), position);
+                            state
+                                .drag_drop_mut()
+                                .update_hover(node_id.clone(), position);
                         } else {
                             state.drag_drop_mut().clear_hover();
                         }
@@ -482,14 +570,14 @@ impl Outliner {
                 if let Some((source_id, target_id, position)) = state.drag_drop_mut().end_drag() {
                     // Invoke the on_move callback
                     actions.on_move(&source_id, &target_id, position);
-                    
+
                     // Get the dragging nodes and add them to the response
                     response.dragging_nodes = state.dragging_nodes().to_vec();
-                    
+
                     // Record the drop event in the response
                     response.drop_event = Some(DropEvent::new(source_id, target_id, position));
                     response.changed = true;
-                    
+
                     // Clear dragging nodes after drop
                     state.clear_dragging_nodes();
                 } else {
@@ -501,25 +589,49 @@ impl Outliner {
 
         // Draw visual feedback for drag-drop
         if is_dragging {
-            self.drag_drop_visuals.draw_drag_source(ui.painter(), row_rect);
+            self.drag_drop_visuals
+                .draw_drag_source(ui.painter(), row_rect);
         }
 
-        if is_hover_target
-            && let Some(position) = drop_position {
-                match position {
-                    DropPosition::Before | DropPosition::After => {
-                        self.drag_drop_visuals.draw_drop_line(ui.painter(), row_rect, position);
-                    }
-                    DropPosition::Inside => {
-                        self.drag_drop_visuals.draw_drop_highlight(ui.painter(), row_rect);
-                    }
+        if is_hover_target && let Some(position) = drop_position {
+            match position {
+                DropPosition::Before | DropPosition::After => {
+                    self.drag_drop_visuals
+                        .draw_drop_line(ui.painter(), row_rect, position);
+                }
+                DropPosition::Inside => {
+                    self.drag_drop_visuals
+                        .draw_drop_highlight(ui.painter(), row_rect);
                 }
             }
+        }
 
         // Render children if this is an expanded collection
         if is_collection && is_expanded {
-            for child in node.children() {
-                self.render_node(ui, child, depth + 1, all_nodes, state, actions, response, visible_nodes, node_rects, selected_nodes);
+            let children = node.children();
+            let num_children = children.len();
+
+            // Build the continuation_lines for children
+            // This node has more siblings if it's not the last child
+            let mut child_continuation_lines = continuation_lines.to_vec();
+            child_continuation_lines.push(!is_last_child);
+
+            for (idx, child) in children.iter().enumerate() {
+                let child_is_last = idx == num_children - 1;
+                self.render_node(
+                    ui,
+                    child,
+                    depth + 1,
+                    all_nodes,
+                    state,
+                    actions,
+                    response,
+                    visible_nodes,
+                    node_rects,
+                    selected_nodes,
+                    &child_continuation_lines,
+                    child_is_last,
+                );
             }
         }
     }
@@ -554,7 +666,8 @@ impl Outliner {
         None
     }
 
-    /// Helper function to check if a node contains a descendant with the given ID.
+    /// Helper function to check if a node contains a descendant with the given
+    /// ID.
     fn contains_descendant_impl<N>(node: &N, target_id: &N::Id) -> bool
     where
         N: OutlinerNode,
@@ -568,6 +681,36 @@ impl Outliner {
             }
         }
         false
+    }
+
+    /// Draws a tree line segment with the specified style.
+    ///
+    /// Uses egui's native dashed/dotted line support for efficiency.
+    fn draw_tree_line(
+        &self,
+        painter: &egui::Painter,
+        start: egui::Pos2,
+        end: egui::Pos2,
+        style: &TreeLineStyle,
+        color: egui::Color32,
+    ) {
+        let stroke = egui::Stroke::new(1.0, color);
+
+        match style {
+            TreeLineStyle::Solid => {
+                painter.line_segment([start, end], stroke);
+            }
+            TreeLineStyle::Dashed { dash, gap } => {
+                // Use egui's native dashed line support
+                let shapes = egui::Shape::dashed_line(&[start, end], stroke, *dash, *gap);
+                painter.extend(shapes);
+            }
+            TreeLineStyle::Dotted { spacing, radius } => {
+                // Use egui's native dotted line support
+                let shapes = egui::Shape::dotted_line(&[start, end], color, *spacing, *radius);
+                painter.extend(shapes);
+            }
+        }
     }
 
     /// Renders the expand/collapse arrow icon.
@@ -646,13 +789,14 @@ impl Outliner {
         } else {
             // Render selectable label
             let label_text = node.name();
-            
+
             // Create a custom selectable label with our styling
-            // Include drag sensing so we can detect drag operations on the label
-            // Reserve space for action icons to prevent layout shifts
+            // Include drag sensing so we can detect drag operations on the
+            // label Reserve space for action icons to prevent
+            // layout shifts
             let available_width = ui.available_width();
             let label_width = (available_width - icons_width - 10.0).max(50.0);
-            
+
             let (rect, label_response) = ui.allocate_exact_size(
                 egui::vec2(label_width, self.style.row_height),
                 egui::Sense::click_and_drag(),
@@ -660,14 +804,18 @@ impl Outliner {
 
             if ui.is_rect_visible(rect) {
                 let visuals = ui.style().interact(&label_response);
-                
+
                 // Draw background if selected or hovered
                 if is_selected {
-                    let bg_color = self.style.selection_color
+                    let bg_color = self
+                        .style
+                        .selection_color
                         .unwrap_or_else(|| ui.visuals().selection.bg_fill);
                     ui.painter().rect_filled(rect, 2.0, bg_color);
                 } else if label_response.hovered() {
-                    let bg_color = self.style.hover_color
+                    let bg_color = self
+                        .style
+                        .hover_color
                         .unwrap_or_else(|| ui.visuals().widgets.hovered.bg_fill);
                     ui.painter().rect_filled(rect, 2.0, bg_color);
                 }
@@ -719,13 +867,13 @@ impl Outliner {
     {
         let node_id = node.id();
         let is_collection = node.is_collection();
-        
+
         for action_icon in node.action_icons().iter().rev() {
             match action_icon {
                 ActionIcon::Visibility => {
                     let is_visible = actions.is_visible(&node_id);
                     let icon_text = if is_visible { "👁" } else { "🚫" };
-                    
+
                     let (rect, icon_response) = ui.allocate_exact_size(
                         egui::vec2(self.style.action_icon_size, self.style.row_height),
                         egui::Sense::click(),
@@ -750,19 +898,22 @@ impl Outliner {
 
                     // Handle click to toggle visibility
                     if icon_response.clicked() {
-                        // Determine the new visibility state (opposite of current)
+                        // Determine the new visibility state (opposite of
+                        // current)
                         let new_visibility = !is_visible;
-                        
+
                         // Set the parent to the new state
                         if new_visibility != is_visible {
                             actions.on_visibility_toggle(&node_id);
                         }
-                        
-                        // If this is a collection, set all children to the same state
+
+                        // If this is a collection, set all children to the same
+                        // state
                         if is_collection {
                             for child_id in Self::collect_descendant_ids(node) {
                                 let child_visible = actions.is_visible(&child_id);
-                                // Only toggle if the child's state differs from target
+                                // Only toggle if the child's state differs from
+                                // target
                                 if child_visible != new_visibility {
                                     actions.on_visibility_toggle(&child_id);
                                 }
@@ -773,7 +924,7 @@ impl Outliner {
                 ActionIcon::Lock => {
                     let is_locked = actions.is_locked(&node_id);
                     let icon_text = if is_locked { "🔒" } else { "🔓" };
-                    
+
                     let (rect, icon_response) = ui.allocate_exact_size(
                         egui::vec2(self.style.action_icon_size, self.style.row_height),
                         egui::Sense::click(),
@@ -810,7 +961,7 @@ impl Outliner {
                 ActionIcon::Selection => {
                     let is_selected = actions.is_selected(&node_id);
                     let icon_text = if is_selected { "☑" } else { "☐" };
-                    
+
                     let (rect, icon_response) = ui.allocate_exact_size(
                         egui::vec2(self.style.action_icon_size, self.style.row_height),
                         egui::Sense::click(),
@@ -835,14 +986,16 @@ impl Outliner {
 
                     // Handle click to toggle selection
                     if icon_response.clicked() {
-                        // Determine the new selection state based on current state
+                        // Determine the new selection state based on current
+                        // state
                         let current_state = actions.is_selected(&node_id);
                         let new_state = !current_state;
-                        
+
                         // Apply the new state to the parent
                         actions.on_select(&node_id, new_state);
-                        
-                        // If this is a collection, apply the same state to all children
+
+                        // If this is a collection, apply the same state to all
+                        // children
                         if is_collection {
                             for child_id in Self::collect_descendant_ids(node) {
                                 actions.on_select(&child_id, new_state);
@@ -858,7 +1011,7 @@ impl Outliner {
 
                     if ui.is_rect_visible(rect) {
                         let visuals = ui.style().interact(&icon_response);
-                        
+
                         ui.painter().text(
                             rect.center(),
                             egui::Align2::CENTER_CENTER,
@@ -870,7 +1023,7 @@ impl Outliner {
 
                     // Handle click for custom action
                     let clicked = icon_response.clicked();
-                    
+
                     // Add tooltip if provided (consumes the response)
                     let _icon_response = if let Some(tip) = tooltip {
                         icon_response.on_hover_text(tip)
@@ -890,8 +1043,8 @@ impl Outliner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::traits::{OutlinerNode, OutlinerActions, IconType, ActionIcon};
-    use std::collections::{HashSet, HashMap};
+    use crate::traits::{ActionIcon, IconType, OutlinerActions, OutlinerNode};
+    use std::collections::{HashMap, HashSet};
 
     // Mock node for testing
     #[derive(Debug, Clone, PartialEq)]
@@ -934,7 +1087,11 @@ mod tests {
         }
 
         fn action_icons(&self) -> Vec<ActionIcon> {
-            vec![ActionIcon::Visibility, ActionIcon::Lock, ActionIcon::Selection]
+            vec![
+                ActionIcon::Visibility,
+                ActionIcon::Lock,
+                ActionIcon::Selection,
+            ]
         }
     }
 
@@ -955,6 +1112,7 @@ mod tests {
     }
 
     // Mock actions handler for testing
+    #[derive(Default)]
     struct TestActions {
         selected: HashSet<u64>,
         visible: HashSet<u64>,
@@ -962,19 +1120,6 @@ mod tests {
         renamed: HashMap<u64, String>,
         moved: Vec<(u64, u64, DropPosition)>,
         custom_actions: Vec<(u64, String)>,
-    }
-
-    impl TestActions {
-        fn new() -> Self {
-            Self {
-                selected: HashSet::new(),
-                visible: HashSet::new(),
-                locked: HashSet::new(),
-                renamed: HashMap::new(),
-                moved: Vec::new(),
-                custom_actions: Vec::new(),
-            }
-        }
     }
 
     impl OutlinerActions<TestNode> for TestActions {
@@ -1039,69 +1184,65 @@ mod tests {
             TestNode::new(2, "Node2", false),
             TestNode::new(3, "Node3", false),
         ];
-        
+
         let state = OutlinerState::<u64>::default();
         let mut result = Vec::new();
-        
+
         Outliner::collect_visible_node_ids(&nodes, &state, &mut result);
-        
+
         assert_eq!(result, vec![1, 2, 3]);
     }
 
     #[test]
     fn test_collect_visible_node_ids_with_collapsed_children() {
-        let nodes = vec![
-            TestNode::new(1, "Node1", true).with_children(vec![
-                TestNode::new(2, "Child1", false),
-                TestNode::new(3, "Child2", false),
-            ]),
-        ];
-        
+        let nodes = vec![TestNode::new(1, "Node1", true).with_children(vec![
+            TestNode::new(2, "Child1", false),
+            TestNode::new(3, "Child2", false),
+        ])];
+
         let state = OutlinerState::<u64>::default();
         let mut result = Vec::new();
-        
+
         Outliner::collect_visible_node_ids(&nodes, &state, &mut result);
-        
+
         // Only parent should be visible when collapsed
         assert_eq!(result, vec![1]);
     }
 
     #[test]
     fn test_collect_visible_node_ids_with_expanded_children() {
-        let nodes = vec![
-            TestNode::new(1, "Node1", true).with_children(vec![
-                TestNode::new(2, "Child1", false),
-                TestNode::new(3, "Child2", false),
-            ]),
-        ];
-        
+        let nodes = vec![TestNode::new(1, "Node1", true).with_children(vec![
+            TestNode::new(2, "Child1", false),
+            TestNode::new(3, "Child2", false),
+        ])];
+
         let mut state = OutlinerState::<u64>::default();
         state.set_expanded(&1, true);
         let mut result = Vec::new();
-        
+
         Outliner::collect_visible_node_ids(&nodes, &state, &mut result);
-        
+
         // Parent and children should be visible when expanded
         assert_eq!(result, vec![1, 2, 3]);
     }
 
     #[test]
     fn test_collect_visible_node_ids_nested() {
-        let nodes = vec![
-            TestNode::new(1, "Node1", true).with_children(vec![
-                TestNode::new(2, "Child1", true).with_children(vec![
-                    TestNode::new(3, "GrandChild1", false),
-                ]),
-            ]),
-        ];
-        
+        let nodes = vec![TestNode::new(1, "Node1", true).with_children(vec![
+            TestNode::new(2, "Child1", true).with_children(vec![TestNode::new(
+                3,
+                "GrandChild1",
+                false,
+            )]),
+        ])];
+
         let mut state = OutlinerState::<u64>::default();
         state.set_expanded(&1, true);
         state.set_expanded(&2, true);
         let mut result = Vec::new();
-        
+
         Outliner::collect_visible_node_ids(&nodes, &state, &mut result);
-        
+
         assert_eq!(result, vec![1, 2, 3]);
     }
 
@@ -1111,11 +1252,11 @@ mod tests {
             TestNode::new(1, "Node1", false),
             TestNode::new(2, "Node2", false),
         ];
-        
+
         let found = Outliner::find_node_by_id_impl(&nodes, &1);
         assert!(found.is_some());
         assert_eq!(found.unwrap().id(), 1);
-        
+
         let found = Outliner::find_node_by_id_impl(&nodes, &2);
         assert!(found.is_some());
         assert_eq!(found.unwrap().id(), 2);
@@ -1123,15 +1264,15 @@ mod tests {
 
     #[test]
     fn test_find_node_by_id_nested() {
-        let nodes = vec![
-            TestNode::new(1, "Node1", true).with_children(vec![
-                TestNode::new(2, "Child1", false),
-                TestNode::new(3, "Child2", true).with_children(vec![
-                    TestNode::new(4, "GrandChild1", false),
-                ]),
-            ]),
-        ];
-        
+        let nodes = vec![TestNode::new(1, "Node1", true).with_children(vec![
+            TestNode::new(2, "Child1", false),
+            TestNode::new(3, "Child2", true).with_children(vec![TestNode::new(
+                4,
+                "GrandChild1",
+                false,
+            )]),
+        ])];
+
         let found = Outliner::find_node_by_id_impl(&nodes, &4);
         assert!(found.is_some());
         assert_eq!(found.unwrap().id(), 4);
@@ -1139,20 +1280,17 @@ mod tests {
 
     #[test]
     fn test_find_node_by_id_not_found() {
-        let nodes = vec![
-            TestNode::new(1, "Node1", false),
-        ];
-        
+        let nodes = vec![TestNode::new(1, "Node1", false)];
+
         let found = Outliner::find_node_by_id_impl(&nodes, &999);
         assert!(found.is_none());
     }
 
     #[test]
     fn test_contains_descendant_direct_child() {
-        let node = TestNode::new(1, "Parent", true).with_children(vec![
-            TestNode::new(2, "Child", false),
-        ]);
-        
+        let node =
+            TestNode::new(1, "Parent", true).with_children(vec![TestNode::new(2, "Child", false)]);
+
         assert!(Outliner::contains_descendant_impl(&node, &2));
         assert!(!Outliner::contains_descendant_impl(&node, &999));
     }
@@ -1160,11 +1298,13 @@ mod tests {
     #[test]
     fn test_contains_descendant_nested() {
         let node = TestNode::new(1, "Parent", true).with_children(vec![
-            TestNode::new(2, "Child", true).with_children(vec![
-                TestNode::new(3, "GrandChild", false),
-            ]),
+            TestNode::new(2, "Child", true).with_children(vec![TestNode::new(
+                3,
+                "GrandChild",
+                false,
+            )]),
         ]);
-        
+
         assert!(Outliner::contains_descendant_impl(&node, &2));
         assert!(Outliner::contains_descendant_impl(&node, &3));
         assert!(!Outliner::contains_descendant_impl(&node, &1));
@@ -1172,23 +1312,23 @@ mod tests {
 
     #[test]
     fn test_is_descendant_of_impl() {
-        let nodes = vec![
-            TestNode::new(1, "Parent", true).with_children(vec![
-                TestNode::new(2, "Child", true).with_children(vec![
-                    TestNode::new(3, "GrandChild", false),
-                ]),
-            ]),
-        ];
-        
+        let nodes = vec![TestNode::new(1, "Parent", true).with_children(vec![
+            TestNode::new(2, "Child", true).with_children(vec![TestNode::new(
+                3,
+                "GrandChild",
+                false,
+            )]),
+        ])];
+
         // Node 2 is a descendant of node 1
         assert!(Outliner::is_descendant_of_impl(&nodes, &2, &1));
-        
+
         // Node 3 is a descendant of node 1
         assert!(Outliner::is_descendant_of_impl(&nodes, &3, &1));
-        
+
         // Node 3 is a descendant of node 2
         assert!(Outliner::is_descendant_of_impl(&nodes, &3, &2));
-        
+
         // Node 1 is not a descendant of node 2
         assert!(!Outliner::is_descendant_of_impl(&nodes, &1, &2));
     }
@@ -1197,11 +1337,13 @@ mod tests {
     fn test_collect_descendant_ids() {
         let node = TestNode::new(1, "Parent", true).with_children(vec![
             TestNode::new(2, "Child1", false),
-            TestNode::new(3, "Child2", true).with_children(vec![
-                TestNode::new(4, "GrandChild", false),
-            ]),
+            TestNode::new(3, "Child2", true).with_children(vec![TestNode::new(
+                4,
+                "GrandChild",
+                false,
+            )]),
         ]);
-        
+
         let ids = Outliner::collect_descendant_ids(&node);
         assert_eq!(ids.len(), 3);
         assert!(ids.contains(&2));

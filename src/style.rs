@@ -1,7 +1,7 @@
 //! Style configuration for the outliner widget.
 //!
-//! This module provides types for customizing the visual appearance of the outliner,
-//! including colors, spacing, and icon styles.
+//! This module provides types for customizing the visual appearance of the
+//! outliner, including colors, spacing, icon styles, and tree line display.
 
 /// Style configuration for the outliner widget.
 ///
@@ -9,8 +9,8 @@
 /// Use the builder pattern methods for convenient construction:
 ///
 /// ```rust
-/// use egui_arbor::Style;
 /// use egui::Color32;
+/// use egui_arbor::Style;
 ///
 /// let style = Style::default()
 ///     .with_indent(20.0)
@@ -57,6 +57,27 @@ pub struct Style {
     ///
     /// Default: `ExpandIconStyle::Arrow`
     pub expand_icon_style: ExpandIconStyle,
+
+    /// Optional tree line style for showing hierarchy connections.
+    ///
+    /// When `Some`, vertical and horizontal lines are drawn to show
+    /// the parent-child relationships in the tree.
+    ///
+    /// Default: `None` (no tree lines)
+    pub tree_lines: Option<TreeLineStyle>,
+
+    /// Color for tree lines.
+    ///
+    /// If `None`, uses a semi-transparent version of the text color.
+    pub tree_line_color: Option<egui::Color32>,
+
+    /// Right margin to reserve for scrollbar in logical pixels.
+    ///
+    /// When the outliner is used inside a scroll area, this margin
+    /// prevents action icons from being hidden behind the scrollbar.
+    ///
+    /// Default: 14.0
+    pub scrollbar_margin: f32,
 }
 
 impl Default for Style {
@@ -70,6 +91,9 @@ impl Default for Style {
             selection_color: Some(egui::Color32::from_rgba_unmultiplied(100, 150, 200, 100)),
             hover_color: Some(egui::Color32::from_rgba_unmultiplied(100, 150, 200, 50)),
             expand_icon_style: ExpandIconStyle::Arrow,
+            tree_lines: None,
+            tree_line_color: None,
+            scrollbar_margin: 14.0,
         }
     }
 }
@@ -162,11 +186,11 @@ impl Style {
     ///
     /// # Example
     /// ```rust
-    /// use egui_arbor::Style;
     /// use egui::Color32;
+    /// use egui_arbor::Style;
     ///
-    /// let style = Style::default()
-    ///     .with_selection_color(Color32::from_rgb(100, 150, 200));
+    /// let style =
+    ///     Style::default().with_selection_color(Color32::from_rgb(100, 150, 200));
     /// ```
     pub fn with_selection_color(mut self, color: egui::Color32) -> Self {
         self.selection_color = Some(color);
@@ -180,11 +204,11 @@ impl Style {
     ///
     /// # Example
     /// ```rust
-    /// use egui_arbor::Style;
     /// use egui::Color32;
+    /// use egui_arbor::Style;
     ///
-    /// let style = Style::default()
-    ///     .with_hover_color(Color32::from_rgb(150, 180, 210));
+    /// let style =
+    ///     Style::default().with_hover_color(Color32::from_rgb(150, 180, 210));
     /// ```
     pub fn with_hover_color(mut self, color: egui::Color32) -> Self {
         self.hover_color = Some(color);
@@ -198,13 +222,49 @@ impl Style {
     ///
     /// # Example
     /// ```rust
-    /// use egui_arbor::{Style, ExpandIconStyle};
+    /// use egui_arbor::{ExpandIconStyle, Style};
     ///
-    /// let style = Style::default()
-    ///     .with_expand_icon_style(ExpandIconStyle::PlusMinus);
+    /// let style =
+    ///     Style::default().with_expand_icon_style(ExpandIconStyle::PlusMinus);
     /// ```
     pub fn with_expand_icon_style(mut self, style: ExpandIconStyle) -> Self {
         self.expand_icon_style = style;
+        self
+    }
+
+    /// Enable tree lines with the specified style.
+    ///
+    /// Tree lines show the hierarchical structure with vertical and
+    /// horizontal connector lines.
+    ///
+    /// # Arguments
+    /// * `style` - The tree line style to use
+    ///
+    /// # Example
+    /// ```rust
+    /// use egui_arbor::{Style, TreeLineStyle};
+    ///
+    /// let style = Style::default().with_tree_lines(TreeLineStyle::Solid);
+    /// ```
+    pub fn with_tree_lines(mut self, style: TreeLineStyle) -> Self {
+        self.tree_lines = Some(style);
+        self
+    }
+
+    /// Set the color for tree lines.
+    ///
+    /// # Arguments
+    /// * `color` - The color to use for tree lines
+    ///
+    /// # Example
+    /// ```rust
+    /// use egui::Color32;
+    /// use egui_arbor::Style;
+    ///
+    /// let style = Style::default().with_tree_line_color(Color32::GRAY);
+    /// ```
+    pub fn with_tree_line_color(mut self, color: egui::Color32) -> Self {
+        self.tree_line_color = Some(color);
         self
     }
 }
@@ -213,9 +273,10 @@ impl Style {
 ///
 /// Determines the visual appearance of the icon used to expand and collapse
 /// tree nodes in the outliner.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum ExpandIconStyle {
     /// Simple arrow style (▶ when collapsed, ▼ when expanded).
+    #[default]
     Arrow,
 
     /// Plus/minus signs (+ when collapsed, - when expanded).
@@ -271,8 +332,55 @@ impl ExpandIconStyle {
     }
 }
 
-impl Default for ExpandIconStyle {
-    fn default() -> Self {
-        Self::Arrow
+/// Style of tree lines showing hierarchy connections.
+///
+/// Tree lines are vertical and horizontal lines drawn to visualize
+/// the parent-child relationships in the tree structure.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub enum TreeLineStyle {
+    /// Solid continuous lines.
+    #[default]
+    Solid,
+
+    /// Dashed lines with configurable dash and gap lengths.
+    ///
+    /// # Fields
+    /// * `dash` - Length of each dash in logical pixels
+    /// * `gap` - Length of the gap between dashes in logical pixels
+    Dashed {
+        /// Length of each dash segment.
+        dash: f32,
+        /// Length of the gap between dashes.
+        gap: f32,
+    },
+
+    /// Dotted lines with configurable spacing and radius.
+    ///
+    /// # Fields
+    /// * `spacing` - Distance between dot centers in logical pixels
+    /// * `radius` - Radius of each dot in logical pixels
+    Dotted {
+        /// Distance between dot centers.
+        spacing: f32,
+        /// Radius of each dot.
+        radius: f32,
+    },
+}
+
+impl TreeLineStyle {
+    /// Creates a dashed line style with default spacing (4px dash, 2px gap).
+    pub fn dashed() -> Self {
+        Self::Dashed {
+            dash: 4.0,
+            gap: 2.0,
+        }
+    }
+
+    /// Creates a dotted line style with default spacing (4px) and radius (0.75px).
+    pub fn dotted() -> Self {
+        Self::Dotted {
+            spacing: 4.0,
+            radius: 0.75,
+        }
     }
 }

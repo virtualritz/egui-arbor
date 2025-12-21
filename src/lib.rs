@@ -1,43 +1,60 @@
 //! A flexible tree/outliner widget for [egui](https://github.com/emilk/egui).
 //!
-//! `egui-arbor` provides a customizable hierarchical tree view widget inspired by
-//! Blender's outliner, designed to integrate seamlessly with egui applications.
+//! `egui-arbor` provides a customizable hierarchical tree view widget inspired
+//! by Blender's outliner, designed to integrate seamlessly with egui
+//! applications.
 //!
 //! # Features
 //!
-//! - **Hierarchical Tree View**: Display nested data structures with collections and entities
-//! - **Expand/Collapse**: Navigate through tree hierarchy with visual expand/collapse arrows
-//! - **Drag & Drop**: Reorder and reparent nodes with Before/After/Inside positioning
-//! - **Action Icons**: Built-in visibility, lock, and selection toggles with custom icon support
+//! - **Hierarchical Tree View**: Display nested data structures with
+//!   collections and entities
+//! - **Expand/Collapse**: Navigate through tree hierarchy with visual
+//!   expand/collapse arrows
+//! - **Drag & Drop**: Reorder and reparent nodes with Before/After/Inside
+//!   positioning
+//! - **Action Icons**: Built-in visibility, lock, and selection toggles with
+//!   custom icon support
 //! - **Inline Editing**: Double-click to rename nodes with keyboard shortcuts
-//! - **Multi-Selection**: Select multiple nodes with Shift-click, Ctrl/Cmd-click, or box selection
-//! - **Customizable Styling**: Configure indentation, colors, icons, and spacing
-//! - **Trait-Based Integration**: Works with any data structure implementing [`OutlinerNode`]
+//! - **Multi-Selection**: Select multiple nodes with Shift-click,
+//!   Ctrl/Cmd-click, or box selection
+//! - **Customizable Styling**: Configure indentation, colors, icons, and
+//!   spacing
+//! - **Trait-Based Integration**: Works with any data structure implementing
+//!   [`OutlinerNode`]
 //! - **State Persistence**: Automatic state management via egui's memory system
-//! - **Tree Operations**: Built-in helpers for common tree manipulations (rename, remove, insert)
-//! - **Default Actions**: Ready-to-use [`OutlinerActions`] implementation with event logging
+//! - **Tree Operations**: Built-in helpers for common tree manipulations
+//!   (rename, remove, insert)
+//! - **Default Actions**: Ready-to-use [`OutlinerActions`] implementation with
+//!   event logging
 //!
 //! # Multi-Selection
 //!
 //! The outliner supports multiple selection modes:
 //! - **Click**: Select a single node (clears other selections)
 //! - **Ctrl/Cmd-Click**: Toggle selection of a node without clearing others
-//! - **Shift-Click**: Select a range of nodes from the last selected to the clicked node
-//! - **Box Selection**: Click and drag in empty space to select multiple nodes with a selection box
+//! - **Shift-Click**: Select a range of nodes from the last selected to the
+//!   clicked node
+//! - **Box Selection**: Click and drag in empty space to select multiple nodes
+//!   with a selection box
 //!   - Hold Ctrl/Cmd while box selecting to add to existing selection
 //!
 //! # Quick Start
 //!
 //! To use the outliner, you need to:
 //! 1. Implement [`OutlinerNode`] on your data structure
-//! 2. Optionally implement [`tree_ops::TreeOperations`] for tree manipulation helpers
-//! 3. Use [`default_actions::DefaultActions`] or implement [`OutlinerActions`] yourself
+//! 2. Optionally implement [`tree_ops::TreeOperations`] for tree manipulation
+//!    helpers
+//! 3. Use [`default_actions::DefaultActions`] or implement [`OutlinerActions`]
+//!    yourself
 //! 4. Create an [`Outliner`] and call its [`show`](Outliner::show) method
 //!
 //! # Example
 //!
 //! ```rust
-//! use egui_arbor::{Outliner, OutlinerNode, tree_ops::TreeOperations, default_actions::DefaultActions};
+//! use egui_arbor::{
+//!     Outliner, OutlinerNode, default_actions::DefaultActions,
+//!     tree_ops::TreeOperations,
+//! };
 //!
 //! // 1. Define your data structure
 //! #[derive(Clone)]
@@ -51,20 +68,37 @@
 //! impl OutlinerNode for TreeNode {
 //!     type Id = u64;
 //!
-//!     fn id(&self) -> Self::Id { self.id }
-//!     fn name(&self) -> &str { &self.name }
-//!     fn is_collection(&self) -> bool { !self.children.is_empty() }
-//!     fn children(&self) -> &[Self] { &self.children }
-//!     fn children_mut(&mut self) -> &mut Vec<Self> { &mut self.children }
+//!     fn id(&self) -> Self::Id {
+//!         self.id
+//!     }
+//!
+//!     fn name(&self) -> &str {
+//!         &self.name
+//!     }
+//!
+//!     fn is_collection(&self) -> bool {
+//!         !self.children.is_empty()
+//!     }
+//!
+//!     fn children(&self) -> &[Self] {
+//!         &self.children
+//!     }
+//!
+//!     fn children_mut(&mut self) -> &mut Vec<Self> {
+//!         &mut self.children
+//!     }
 //! }
 //!
 //! // 3. Get tree operations for free!
 //! impl TreeOperations for TreeNode {}
 //!
 //! // 4. Use in your egui code with default actions
-//! fn show_tree(ui: &mut egui::Ui, nodes: &[TreeNode], actions: &mut DefaultActions<u64>) {
-//!     let response = Outliner::new("my_tree")
-//!         .show(ui, nodes, actions);
+//! fn show_tree(
+//!     ui: &mut egui::Ui,
+//!     nodes: &[TreeNode],
+//!     actions: &mut DefaultActions<u64>,
+//! ) {
+//!     let response = Outliner::new("my_tree").show(ui, nodes, actions);
 //!
 //!     // Handle events
 //!     if let Some(id) = response.selected() {
@@ -86,7 +120,8 @@
 //! # Helper Modules
 //!
 //! - [`tree_ops`] - Tree manipulation operations (rename, remove, insert)
-//! - [`default_actions`] - Ready-to-use actions implementation with state tracking
+//! - [`default_actions`] - Ready-to-use actions implementation with state
+//!   tracking
 //! - [`event_log`] - Event logging system for tracking user interactions
 //!
 //! # Optional Features
@@ -108,5 +143,5 @@ pub use drag_drop::{DragDropState, DragDropVisuals};
 pub use outliner::Outliner;
 pub use response::{DropEvent, OutlinerResponse};
 pub use state::{BoxSelectionState, OutlinerState};
-pub use style::{ExpandIconStyle, Style};
+pub use style::{ExpandIconStyle, Style, TreeLineStyle};
 pub use traits::{ActionIcon, DropPosition, IconType, OutlinerActions, OutlinerNode};
