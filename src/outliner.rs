@@ -168,9 +168,10 @@ impl Outliner {
                     .collect();
 
                 // Create the outliner response wrapper
+                // Use Sense::click() so response.inner.context_menu() works properly
                 let mut outliner_response = OutlinerResponse::new(ui.allocate_response(
                     egui::vec2(ui.available_width(), 0.0),
-                    egui::Sense::hover(),
+                    egui::Sense::click(),
                 ));
 
                 // Render all root nodes
@@ -196,6 +197,21 @@ impl Outliner {
                 // Handle box selection in the background
                 let available_rect = ui.available_rect_before_wrap();
                 let bg_response = ui.allocate_rect(available_rect, egui::Sense::click_and_drag());
+
+                // Detect secondary click on empty area (not on any node)
+                if bg_response.secondary_clicked()
+                    || (ui.input(|i| i.pointer.secondary_clicked())
+                        && available_rect.contains(
+                            ui.input(|i| i.pointer.interact_pos()).unwrap_or_default(),
+                        ))
+                {
+                    let click_pos = ui.input(|i| i.pointer.interact_pos()).unwrap_or_default();
+                    let clicking_on_node =
+                        node_rects.iter().any(|(_, rect)| rect.contains(click_pos));
+                    if !clicking_on_node {
+                        outliner_response.context_menu_empty = true;
+                    }
+                }
 
                 // Check if we're starting a box selection (clicking in empty
                 // space)
@@ -417,9 +433,13 @@ impl Outliner {
                 ui.add_space(self.style.expand_icon_size + self.style.icon_spacing);
             }
 
-            // Render node icon (placeholder for now)
-            if node.icon().is_some() {
-                ui.label("📄");
+            // Render node icon
+            if let Some(icon_type) = node.icon() {
+                match icon_type {
+                    crate::IconType::Collection => ui.label("📁"),
+                    crate::IconType::Entity => ui.label("📄"),
+                    crate::IconType::Custom(s) => ui.label(s),
+                };
                 ui.add_space(self.style.icon_spacing);
             }
 
@@ -493,9 +513,6 @@ impl Outliner {
                     response.changed = true;
                 }
 
-                if label_response.secondary_clicked() {
-                    response.context_menu = Some(node_id.clone());
-                }
             }
 
             // Render action icons (right-aligned, with scrollbar margin)
@@ -514,6 +531,15 @@ impl Outliner {
 
         // Store the node rectangle for box selection
         node_rects.push((node_id.clone(), row_rect));
+
+        // Detect secondary click (context menu) on the entire row
+        // Check both the label response and if pointer is within row rect
+        let secondary_clicked_in_row = label_response.secondary_clicked()
+            || (ui.input(|i| i.pointer.secondary_clicked())
+                && row_rect.contains(ui.input(|i| i.pointer.interact_pos()).unwrap_or_default()));
+        if secondary_clicked_in_row && !is_editing {
+            response.context_menu = Some(node_id.clone());
+        }
 
         // Use the label response for drag detection
         let drag_response = label_response;
@@ -1003,7 +1029,11 @@ impl Outliner {
                         }
                     }
                 }
-                ActionIcon::Custom { icon, tooltip } => {
+                ActionIcon::Custom {
+                    icon,
+                    tooltip,
+                    font_family,
+                } => {
                     let (rect, icon_response) = ui.allocate_exact_size(
                         egui::vec2(self.style.action_icon_size, self.style.row_height),
                         egui::Sense::click(),
@@ -1012,11 +1042,21 @@ impl Outliner {
                     if ui.is_rect_visible(rect) {
                         let visuals = ui.style().interact(&icon_response);
 
+                        let font_id = match font_family {
+                            Some(name) => egui::FontId::new(
+                                self.style.action_icon_size * 0.8,
+                                egui::FontFamily::Name(name.clone().into()),
+                            ),
+                            None => {
+                                egui::FontId::proportional(self.style.action_icon_size * 0.8)
+                            }
+                        };
+
                         ui.painter().text(
                             rect.center(),
                             egui::Align2::CENTER_CENTER,
                             icon.as_str(),
-                            egui::FontId::proportional(self.style.action_icon_size * 0.8),
+                            font_id,
                             visuals.text_color(),
                         );
                     }

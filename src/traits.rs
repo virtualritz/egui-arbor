@@ -371,11 +371,15 @@ pub enum ActionIcon {
     /// * `icon` - Identifier for the icon (e.g., emoji, icon name, or custom
     ///   identifier)
     /// * `tooltip` - Optional tooltip text to display on hover
+    /// * `font_family` - Optional font family name for icon fonts (e.g.,
+    ///   "material-icons-outlined")
     Custom {
         /// The icon identifier or character to display
         icon: String,
         /// Optional tooltip text
         tooltip: Option<String>,
+        /// Optional font family name (uses proportional if None)
+        font_family: Option<String>,
     },
 }
 

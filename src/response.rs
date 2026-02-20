@@ -71,6 +71,11 @@ where
     /// This is typically triggered by right-clicking on a node.
     pub context_menu: Option<Id>,
 
+    /// Whether a context menu was requested on empty area (not on any node).
+    ///
+    /// This is triggered by right-clicking on empty space in the outliner.
+    pub context_menu_empty: bool,
+
     /// ID and new name of a node that was renamed this frame, if any.
     ///
     /// The tuple contains `(node_id, new_name)`.
@@ -121,6 +126,7 @@ where
             selected: None,
             double_clicked: None,
             context_menu: None,
+            context_menu_empty: false,
             renamed: None,
             drag_started: None,
             dragging_nodes: Vec::new(),
