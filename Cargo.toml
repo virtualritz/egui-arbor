@@ -13,7 +13,7 @@ categories = ["gui"]
 serde = ["dep:serde"]
 
 [dependencies]
-egui = "0.33"
+egui = "0.34"
 serde = { version = "1", optional = true }
 
 [dev-dependencies]
@@ -39,7 +39,7 @@ bevy = { version = "0.17", default-features = false, features = [
     "webgl2"
 ] }
 bevy_egui = "0.38"
-eframe = "0.33"
+eframe = "0.34"
 
 [[example]]
 name = "basic"

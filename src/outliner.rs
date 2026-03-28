@@ -350,10 +350,19 @@ impl Outliner {
 
         // Start horizontal layout for this row
         let row_output = ui.horizontal(|ui| {
-            // Calculate space needed for action icons upfront
-            let num_action_icons = node.action_icons().len();
-            let icons_width =
-                num_action_icons as f32 * (self.style.action_icon_size + self.style.icon_spacing);
+            // Calculate space needed for action icons upfront.
+            // The right-to-left section uses `item_spacing.x` between items,
+            // not `icon_spacing`, plus scrollbar margin.
+            let num_action_icons = node.action_icons().len() as f32;
+            let item_sp = ui.spacing().item_spacing.x;
+            let icons_width = if num_action_icons > 0.0 {
+                num_action_icons * self.style.action_icon_size
+                    + (num_action_icons - 1.0) * item_sp
+                    + self.style.scrollbar_margin
+                    + item_sp
+            } else {
+                0.0
+            };
 
             // Draw tree lines and add indentation
             if let Some(ref tree_line_style) = self.style.tree_lines {
@@ -821,7 +830,7 @@ impl Outliner {
             // label Reserve space for action icons to prevent
             // layout shifts
             let available_width = ui.available_width();
-            let label_width = (available_width - icons_width - 10.0).max(50.0);
+            let label_width = (available_width - icons_width).max(50.0);
 
             let (rect, label_response) = ui.allocate_exact_size(
                 egui::vec2(label_width, self.style.row_height),
